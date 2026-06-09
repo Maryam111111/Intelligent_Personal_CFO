@@ -1,0 +1,36 @@
+Date,Description,Amount,Category
+2024-01-01,Opening Balance,0.00,Balance
+2024-01-02,Tesco Superstore,-142.50,Groceries
+2024-01-03,Netflix,-17.99,Entertainment
+2024-01-05,Shell Petrol,-68.20,Transport
+2024-01-07,Nando's Restaurant,-34.50,Dining Out
+2024-01-10,Gym Membership,-45.00,Health
+2024-01-12,Amazon Purchase,-89.99,Shopping
+2024-01-14,Salary,+3800.00,Income
+2024-01-15,Rent,-1200.00,Housing
+2024-01-16,BT Broadband,-42.00,Utilities
+2024-01-18,Costa Coffee,-12.40,Dining Out
+2024-01-20,Uber,-23.50,Transport
+2024-01-21,Sainsbury's,-95.30,Groceries
+2024-01-23,Spotify,-9.99,Entertainment
+2024-01-25,Electric Bill,-78.00,Utilities
+2024-01-27,Pret A Manger,-8.60,Dining Out
+2024-01-28,John Lewis,-156.00,Shopping
+2024-01-29,Deliveroo,-28.75,Dining Out
+2024-01-30,Water Bill,-34.00,Utilities
+2024-02-01,Tesco Superstore,-138.20,Groceries
+2024-02-03,Netflix,-17.99,Entertainment
+2024-02-05,BP Petrol,-72.10,Transport
+2024-02-07,Wagamama,-42.80,Dining Out
+2024-02-10,Gym Membership,-45.00,Health
+2024-02-12,ASOS,-112.00,Shopping
+2024-02-14,Salary,+3800.00,Income
+2024-02-15,Rent,-1200.00,Housing
+2024-02-16,BT Broadband,-42.00,Utilities
+2024-02-18,Starbucks,-14.20,Dining Out
+2024-02-20,TfL Oyster,-60.00,Transport
+2024-02-22,Marks & Spencer,-67.40,Groceries
+2024-02-23,Spotify,-9.99,Entertainment
+2024-02-25,Electric Bill,-81.00,Utilities
+2024-02-27,Boots Pharmacy,-23.50,Health
+2024-02-28,Zara,-89.00,Shopping
