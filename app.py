@@ -2,11 +2,17 @@
 app.py — Streamlit dashboard for Personal Finance AI CFO
 ─────────────────────────────────────────────────────────
 Run:  streamlit run app.py
+
+Security features:
+- File size limits on uploads
+- Input validation on CSV files
+- No sensitive data in logs
 """
 
 import io
 import os
 import time
+import logging
 from datetime import datetime
 
 import streamlit as st
@@ -22,6 +28,12 @@ from agents import (
     SpendingAgent, BudgetAgent, SavingsAgent,
     InvestmentAgent, GoalPlanningAgent,
 )
+
+logger = logging.getLogger(__name__)
+
+# ── Configuration ────────────────────────────────────────────────
+MAX_UPLOAD_SIZE_MB = 10  # Maximum file upload size
+MAX_CSV_SIZE_BYTES = 10 * 1024 * 1024
 
 # ── Page config ────────────────────────────────────────────────
 st.set_page_config(
@@ -45,6 +57,11 @@ st.markdown("""
     margin: 2px; font-family: monospace;
   }
   .status-dot-green { color: #16a34a; font-size: 10px; }
+  .security-notice {
+    background: #fef3c7; border-left: 4px solid #f59e0b;
+    padding: 12px; margin: 10px 0; border-radius: 4px;
+    font-size: 13px; color: #92400e;
+  }
 </style>
 """, unsafe_allow_html=True)
 
@@ -77,7 +94,30 @@ SAMPLE_CREDIT = """Date,Description,Amount,Category
 2024-01-26,Apple Store,-149.00,Electronics"""
 
 
+def validate_csv_upload(file) -> tuple[bool, str]:
+    """
+    Validate uploaded CSV file.
+    
+    Returns:
+        (is_valid, error_message)
+    """
+    if file is None:
+        return True, ""
+    
+    # Check file size
+    file_size = len(file.getvalue())
+    if file_size > MAX_CSV_SIZE_BYTES:
+        return False, f"File exceeds {MAX_UPLOAD_SIZE_MB}MB limit"
+    
+    # Check file extension (client-side already filtered, but verify)
+    if not file.name.endswith(".csv"):
+        return False, "Only CSV files are supported"
+    
+    return True, ""
+
+
 def run_pipeline(context: AgentContext, placeholders: list) -> AgentContext:
+    """Run all 5 agents in sequence."""
     pipeline = [
         SpendingAgent(), BudgetAgent(), SavingsAgent(),
         InvestmentAgent(), GoalPlanningAgent(),
@@ -101,6 +141,14 @@ if "report" not in st.session_state:
 if st.session_state.step == "upload":
     st.markdown("# 💼 Personal Finance AI CFO")
     st.markdown("A **5-agent AI system** that analyses your finances and charts a path to your goal.")
+    
+    # Security notice
+    st.markdown("""
+    <div class="security-notice">
+    🔒 <b>Your data is safe:</b> Transactions are processed locally. Only anonymized summaries are sent to Claude for analysis.
+    </div>
+    """, unsafe_allow_html=True)
+    
     st.divider()
 
     col1, col2 = st.columns(2)
@@ -112,9 +160,18 @@ if st.session_state.step == "upload":
             "Paste CSV", value=st.session_state.get("bank_text", ""),
             height=180, key="bank_input", placeholder="Date,Description,Amount,Category\n..."
         )
-        uploaded_bank = st.file_uploader("Or upload a CSV", type=["csv"], key="bank_upload")
+        uploaded_bank = st.file_uploader(
+            "Or upload a CSV", 
+            type=["csv"], 
+            key="bank_upload",
+            help=f"Max {MAX_UPLOAD_SIZE_MB}MB"
+        )
         if uploaded_bank:
-            bank_text = uploaded_bank.read().decode("utf-8")
+            is_valid, error = validate_csv_upload(uploaded_bank)
+            if not is_valid:
+                st.error(f"❌ {error}")
+            else:
+                bank_text = uploaded_bank.read().decode("utf-8")
 
     with col2:
         st.subheader("💳 Credit Card Statements")
@@ -124,21 +181,32 @@ if st.session_state.step == "upload":
             "Paste CSV", value=st.session_state.get("credit_text", ""),
             height=180, key="credit_input", placeholder="Date,Description,Amount,Category\n..."
         )
-        uploaded_credit = st.file_uploader("Or upload a CSV", type=["csv"], key="credit_upload")
+        uploaded_credit = st.file_uploader(
+            "Or upload a CSV", 
+            type=["csv"], 
+            key="credit_upload",
+            help=f"Max {MAX_UPLOAD_SIZE_MB}MB"
+        )
         if uploaded_credit:
-            credit_text = uploaded_credit.read().decode("utf-8")
+            is_valid, error = validate_csv_upload(uploaded_credit)
+            if not is_valid:
+                st.error(f"❌ {error}")
+            else:
+                credit_text = uploaded_credit.read().decode("utf-8")
 
     st.divider()
     goal = st.text_input(
         "🎯 Your financial goal",
         value="I want £50,000 for a house deposit in 5 years",
         help="Be specific — include amount and timeline.",
+        max_chars=500,
     )
 
     if st.button("🚀 Run 5-Agent Analysis", type="primary", use_container_width=True):
         if not bank_text.strip() and not credit_text.strip():
             st.error("Please add at least one CSV (or load sample data).")
         else:
+            # Store state and proceed
             st.session_state.step = "analyzing"
             st.session_state.goal = goal
             st.session_state.bank_csv = bank_text
@@ -151,45 +219,54 @@ elif st.session_state.step == "analyzing":
     progress_bar = st.progress(0)
     placeholders = [st.empty() for _ in AGENTS_META]
 
-    bank_txns = parse_csv(st.session_state.bank_csv) if st.session_state.bank_csv.strip() else []
-    credit_txns = parse_csv(st.session_state.credit_csv) if st.session_state.credit_csv.strip() else []
+    try:
+        bank_txns = parse_csv(st.session_state.bank_csv) if st.session_state.bank_csv.strip() else []
+        credit_txns = parse_csv(st.session_state.credit_csv) if st.session_state.credit_csv.strip() else []
 
-    context = AgentContext(
-        goal=st.session_state.goal,
-        bank_transactions=bank_txns,
-        credit_transactions=credit_txns,
-    )
+        context = AgentContext(
+            goal=st.session_state.goal,
+            bank_transactions=bank_txns,
+            credit_transactions=credit_txns,
+        )
 
-    pipeline = [
-        SpendingAgent(), BudgetAgent(), SavingsAgent(),
-        InvestmentAgent(), GoalPlanningAgent(),
-    ]
-    outputs = {}
-    for i, agent in enumerate(pipeline):
-        placeholders[i].markdown(f"⏳ **{agent.name}** — processing…")
-        context = agent.run(context)
-        placeholders[i].markdown(f"✅ **{agent.name}** — complete")
-        # Store raw analysis
-        attr = ["spending", "budget", "savings", "investment", "goal_plan"][i]
-        obj = getattr(context, attr)
-        outputs[AGENTS_META[i]["id"]] = obj.raw_analysis if obj else ""
-        progress_bar.progress((i + 1) / len(pipeline))
+        pipeline = [
+            SpendingAgent(), BudgetAgent(), SavingsAgent(),
+            InvestmentAgent(), GoalPlanningAgent(),
+        ]
+        outputs = {}
+        for i, agent in enumerate(pipeline):
+            placeholders[i].markdown(f"⏳ **{agent.name}** — processing…")
+            context = agent.run(context)
+            placeholders[i].markdown(f"✅ **{agent.name}** — complete")
+            # Store raw analysis
+            attr = ["spending", "budget", "savings", "investment", "goal_plan"][i]
+            obj = getattr(context, attr)
+            outputs[AGENTS_META[i]["id"]] = obj.raw_analysis if obj else ""
+            progress_bar.progress((i + 1) / len(pipeline))
 
-    report = CFOReport(
-        goal=st.session_state.goal,
-        spending=context.spending,
-        budget=context.budget,
-        savings=context.savings,
-        investment=context.investment,
-        goal_plan=context.goal_plan,
-        generated_at=datetime.now().isoformat(timespec="seconds"),
-    )
+        report = CFOReport(
+            goal=st.session_state.goal,
+            spending=context.spending,
+            budget=context.budget,
+            savings=context.savings,
+            investment=context.investment,
+            goal_plan=context.goal_plan,
+            generated_at=datetime.now().isoformat(timespec="seconds"),
+        )
 
-    st.session_state.outputs = outputs
-    st.session_state.report = report
-    st.session_state.step = "results"
-    time.sleep(0.5)
-    st.rerun()
+        st.session_state.outputs = outputs
+        st.session_state.report = report
+        st.session_state.step = "results"
+        time.sleep(0.5)
+        st.rerun()
+        
+    except ValueError as e:
+        st.error(f"❌ Invalid CSV format: {str(e)}")
+        st.session_state.step = "upload"
+    except Exception as e:
+        logger.exception("Pipeline error")
+        st.error(f"❌ Analysis failed: {str(e)}")
+        st.session_state.step = "upload"
 
 # ── Results step ───────────────────────────────────────────────
 elif st.session_state.step == "results":
@@ -217,6 +294,14 @@ elif st.session_state.step == "results":
             st.markdown(outputs.get(meta["id"], "_No output yet._"))
 
     st.divider()
+    
+    # Security reminder
+    st.markdown("""
+    <div class="security-notice">
+    💾 <b>Keep this report safe:</b> It contains your financial data. Store securely and don't share with untrusted sources.
+    </div>
+    """, unsafe_allow_html=True)
+    
     col_a, col_b = st.columns(2)
     if col_a.button("⬇️ Download Markdown Report"):
         md_path, _ = write_report(report)

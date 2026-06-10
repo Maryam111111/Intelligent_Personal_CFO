@@ -2,24 +2,19 @@
 .env
 .env.local
 .env.*.local
+.env.prod
 
-# Raw transaction data (NEVER commit)
-data/uploads/*.csv
-data/uploads/*.xlsx
-data/uploads/*.xls
+# Secrets and API keys
+secrets.json
+*.key
+*.pem
+private_key.txt
 
-# Processed but sensitive data
-data/processed/*.json
-data/processed/*.pkl
-
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-
-# OS files
-.DS_Store
-Thumbs.db
+# Reports and user uploads (optional - keep if sharing configs only)
+data/uploads/*
+data/reports/*
+!data/uploads/.gitkeep
+!data/reports/.gitkeep
 
 # Python
 __pycache__/
@@ -39,33 +34,51 @@ parts/
 sdist/
 var/
 wheels/
+pip-wheel-metadata/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+MANIFEST
 
 # Virtual environments
 venv/
-ENV/
 env/
-.venv
+ENV/
+env.bak/
+venv.bak/
 
-# IDE
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+*.cover
+
+# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 .DS_Store
+*.sublime-project
+*.sublime-workspace
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
+# Streamlit cache
+.streamlit/
+.streamlit_cache/
 
-# Logs
+# OS
+.DS_Store
+Thumbs.db
 *.log
-logs/
 
 # Temporary files
 *.tmp
 *.temp
+.cache/
+
+# IDE local settings
+.vscode/settings.json
+.idea/workspace.xml
